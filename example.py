@@ -58,6 +58,8 @@ def emb(texts, model_url):
   return tfload(model_url)(texts)
 
 lower_bound_chars, upper_bound_chars = 256, 512
+avg_word_len = 4.79
+word_count = int((lower_bound_chars + upper_bound_chars) / (2 * (avg_word_len + 1)))
 lens = pars.str.len()  # paragraph lengths
 nice_pars = pars[(lens >= lower_bound_chars)]  # paragraphs we want to use
 def text_reduce_return(paragraph):
@@ -65,7 +67,7 @@ def text_reduce_return(paragraph):
         return paragraph
     else:
         try:
-            return summarize(paragraph, word_count=upper_bound_chars).replace("\n", " ") or \
+            return summarize(paragraph, word_count=word_count).replace("\n", " ") or \
                    paragraph[:upper_bound_chars]
         except ValueError:  # usually happens if there aren't multiple sentences in paragraph
             return paragraph[:upper_bound_chars]
