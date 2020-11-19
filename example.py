@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
 # from builtins import *
+import re
 import os
 from toolz.curried import curry, memoize
+from toolz import curried as tz
 import requests
 
 import pandas as pd
@@ -89,6 +91,10 @@ def clust(g, v, n):
     return (silh.mean(), n, labels, silh, pipe)
 
 core = nx.k_core(nx.Graph(G))
+
+# Capitalize all occurrences of keywords for easy display on the output
+pattern = re.compile(f"\\b({tz.pipe(keywords, tz.pluck(0), '|'.join)})\\b")  # TODO, make matching case insensitive
+nice_pars = nice_pars.apply(lambda x: re.sub(pattern, lambda m: m.group().upper(), x))  # TODO, add [[]] around our keywords
 
 core_pars = np.array(nice_pars)[core.nodes]
 core_vecs = vecs[core.nodes]
