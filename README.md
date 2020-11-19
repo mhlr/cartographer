@@ -1,7 +1,7 @@
 next step:
 
-tree map where silhouette score is used for sizing
-label is used for cluster mapping
+Tree map where silhouette score is used for sizing,
+label is used for cluster mapping, and
 color is used to denote how relevant an entry is to the corpus
 
 (Rakshak does before next meet)
