@@ -11,24 +11,29 @@ import pylab as plt
 
 import scipy
 import networkx as nx
-from gensim import summarization
+from gensim.summarization import keywords, summarize
 from wordcloud import WordCloud
 import sklearn as sk
 from sklearn import neighbors, pipeline, cluster
 import tensorflow_hub as hub
 
 
-NAME_OF_TEXT = 'COMMON SENSE'
+# NAME_OF_TEXT = 'COMMON SENSE'
+#
+# with open('commonsense_painet.txt', 'r') as f:
+#     doc = f.read()
+#     doc = doc.split(NAME_OF_TEXT)[2].replace('\r\n', '\n')
 
-with open('commonsense_painet.txt', 'r') as f:
+NAME_OF_TEXT = "3 papers: gpt3, transformers, detr"
+
+with open('papers/all.txt', 'r') as f:
     doc = f.read()
-    doc = doc.split(NAME_OF_TEXT)[2].replace('\r\n', '\n')
 
 pars = pd.Series(doc.split('\n\n')).str.replace('\n', ' ')
 
 pars.str.len().apply(lambda x:np.log2(x+1)).astype(int).value_counts()
 
-keywords = summarization.keywords(doc, scores=True, lemmatize=True, words=200)
+keywords = keywords(doc, scores=True, lemmatize=True, words=500)
 print(f"Number of keywords: {len(keywords)}")
 
 wc = WordCloud(height=1300, width=3000,
@@ -50,9 +55,21 @@ def tfload(model_url):
 def emb(texts, model_url):
   return tfload(model_url)(texts)
 
+lower_bound_chars, upper_bound_chars = 256, 512
 lens = pars.str.len()  # paragraph lengths
-nice_pars = pars[(lens >= 256) & (lens <= 1024)]  # paragraphs we want to use
-# TODO, idea: for paragraphs of text over 1024 just keep the first 1024 characters
+nice_pars = pars[(lens >= lower_bound_chars)]  # paragraphs we want to use
+def text_reduce_return(paragraph):
+    if len(paragraph) < upper_bound_chars:
+        return paragraph
+    else:
+        try:
+            return summarize(paragraph, word_count=upper_bound_chars).replace("\n", " ") or \
+                   paragraph[:upper_bound_chars]
+        except ValueError:  # usually happens if there aren't multiple sentences in paragraph
+            return paragraph[:upper_bound_chars]
+
+nice_pars = nice_pars.apply(text_reduce_return)
+
 
 len(nice_pars), len(pars)
 
@@ -94,3 +111,4 @@ else:
     df = df.append({"Label": NAME_OF_TEXT, "Cluster ID": None, "Silhouette Score": None}, ignore_index=True)
 
 df.to_csv("out.csv", index=False)
+print()
