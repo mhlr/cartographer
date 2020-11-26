@@ -1,0 +1,10 @@
+pyjanitor
+dask[dataframe,bag,distributed]
+toolz
+networkx
+gensim
+requests
+# wordcloud
+tensorflow
+tensorflow-hub
+pdfminer.six
