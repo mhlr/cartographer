@@ -4,7 +4,7 @@ toolz
 networkx
 gensim
 requests
-wordcloud
+# wordcloud
 tensorflow
-tensorboard
 tensorflow-hub
+pdfminer.six
