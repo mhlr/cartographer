@@ -108,7 +108,7 @@ layers = nx.onion_layers(core)
 len(core.nodes)
 
 df = pd.DataFrame(data=[{"Label": par, "Cluster ID": cid, "Silhouette Score": ss} for par, cid, ss in zip(core_pars, lab, sil)])
-df = df[df["Silhoutte Score"]] > 0]
+df = df[df["Silhoutte Score"] > 0]
 
 df['Cluster ID'] = df.apply(lambda row: "T" + str(row['Cluster ID']), axis=1)
 
