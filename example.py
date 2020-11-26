@@ -111,6 +111,7 @@ len(core.nodes)
 
 # TODO, drop items of silhouette <= 0
 df = pd.DataFrame(data=[{"Label": par, "Cluster ID": cid, "Silhouette Score": ss} for par, cid, ss in zip(core_pars, lab, sil)])
+df = df[df["Silhoutte Score"]] > 0]
 df['Cluster ID'] = df.apply(lambda row: "T" + str(row['Cluster ID']), axis=1)
 
 for cluster_id in df['Cluster ID'].unique():
