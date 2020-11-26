@@ -16,7 +16,7 @@ import scipy
 import networkx as nx
 from gensim.summarization import keywords, summarize
 import sklearn as sk
-from sklearn import neighbors, pipeline, cluster
+from sklearn import neighbors, cluster
 import tensorflow_hub as hub
 
 from aux.text_extract import get_all_pdf_text_concatenated
@@ -41,17 +41,15 @@ def text_reduce_return(paragraph, upper_bound_chars, max_word_count):
         try:
             return summarize(paragraph, word_count=max_word_count).replace("\n", " ") or \
                    paragraph[:upper_bound_chars]
-        except ValueError:  # usually happens if there aren't multiple sentences in paragraph
+        except ValueError:  # usually happens if there aren't multiple sentences in the paragraph
             return paragraph[:upper_bound_chars]
 
 @curry
 def clust(g, v, n):
-    pipe = pipeline.Pipeline([
-        ('agg', cluster.AgglomerativeClustering(n, connectivity=g, linkage='ward', affinity='euclidean'))
-    ])
-    labels = pipe.fit_predict(v)
+    model = cluster.AgglomerativeClustering(n, connectivity=g, linkage='ward', affinity='euclidean')
+    labels = model.fit_predict(v)
     silh = sk.metrics.silhouette_samples(v, labels, metric='cosine')
-    return (silh.mean(), n, labels, silh, pipe)
+    return (silh.mean(), n, labels, silh, model)
 
 
 def main(args):
@@ -95,11 +93,13 @@ def main(args):
 
     sil_u, n, lab, sil, p = clust(nx.adjacency_matrix(core), core_vecs, 8)
 
-    layers = nx.onion_layers(core_nodes)
+    layers = nx.onion_layers(core)
 
-    # TODO, drop items of silhouette <= 0
     df = pd.DataFrame(
         data=[{"Label": par, "Cluster ID": cid, "Silhouette Score": ss} for par, cid, ss in zip(core_pars, lab, sil)])
+
+    df = df[df["Silhouette Score"] > 0]
+
     df['Cluster ID'] = df.apply(lambda row: "T" + str(row['Cluster ID']), axis=1)
 
     # add footer to dataframe so that csv export will be imported by gsheet's tree map plotter correctly
