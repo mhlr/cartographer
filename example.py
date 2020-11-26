@@ -85,12 +85,10 @@ G = neighbors.radius_neighbors_graph(vecs, R, metric='cosine')
 
 @curry
 def clust(g, v, n):
-    pipe = pipeline.Pipeline([
-        ('agg', cluster.AgglomerativeClustering(n, connectivity=g, linkage='ward', affinity='euclidean'))
-    ])
-    labels = pipe.fit_predict(v)
+    model = cluster.AgglomerativeClustering(n, connectivity=g, linkage='ward', affinity='euclidean'))
+    labels = model.fit_predict(v)
     silh = sk.metrics.silhouette_samples(v, labels, metric='cosine')
-    return (silh.mean(), n, labels, silh, pipe)
+    return (silh.mean(), n, labels, silh, model)
 
 core = nx.k_core(nx.Graph(G))
 
@@ -109,9 +107,9 @@ layers = nx.onion_layers(core)
 
 len(core.nodes)
 
-# TODO, drop items of silhouette <= 0
 df = pd.DataFrame(data=[{"Label": par, "Cluster ID": cid, "Silhouette Score": ss} for par, cid, ss in zip(core_pars, lab, sil)])
 df = df[df["Silhoutte Score"]] > 0]
+
 df['Cluster ID'] = df.apply(lambda row: "T" + str(row['Cluster ID']), axis=1)
 
 for cluster_id in df['Cluster ID'].unique():
