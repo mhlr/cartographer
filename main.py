@@ -20,6 +20,8 @@ from sklearn import neighbors, cluster
 import tensorflow_hub as hub
 
 from aux.text_extract import get_all_pdf_text_concatenated
+from aux.helpers import create_output_dir
+from aux.zettelkasten_output import zk_output_files
 
 
 os.environ['TFHUB_CACHE_DIR'] = os.path.expanduser("~/.cache/tfhub_modules")
@@ -53,6 +55,12 @@ def clust(g, v, n):
 
 
 def main(args):
+    try:
+        create_output_dir(args.output_dir, delete_if_exists=args.delete_existing)  # try creating output directory
+    except RuntimeError as e:
+        print("Requested output directory is not empty."
+              "Please try a new output dir (safe) or set --delete_existing (destructive)")
+
     name_of_pdf_dir = os.path.basename(args.directory_with_pdfs)
 
     all_text = get_all_pdf_text_concatenated(args.directory_with_pdfs)
@@ -86,6 +94,7 @@ def main(args):
     pattern = re.compile(f"\\b({tz.pipe(text_keywords, tz.pluck(0), '|'.join)})\\b")
     nice_pars = nice_pars.apply(
         lambda x: re.sub(pattern, lambda m: m.group().upper(), x))  # TODO add [[]] around our keywords for zettelkasten
+    # TODO use back reference (regex)
 
     core_nodes = core.nodes
     core_pars = np.array(nice_pars)[core_nodes]
@@ -93,23 +102,20 @@ def main(args):
 
     sil_u, n, lab, sil, p = clust(nx.adjacency_matrix(core), core_vecs, 8)
 
-    layers = nx.onion_layers(core)
+    layers = nx.onion_layers(core)  # TODO, can I remove this?
 
     df = pd.DataFrame(
-        data=[{"Label": par, "Cluster ID": cid, "Silhouette Score": ss} for par, cid, ss in zip(core_pars, lab, sil)])
+        data=[{"Topic Paragraph": par, "Cluster ID": cid, "Silhouette Score": ss} for par, cid, ss in zip(core_pars, lab, sil)])
 
+    # only keep the paragraphs which have a positive silhouette score
+    # (this gives us the paragraphs which overwhelmingly consist of a single topic)
     df = df[df["Silhouette Score"] > 0]
 
+    # TODO, replace with Topic Labels
     df['Cluster ID'] = df.apply(lambda row: "T" + str(row['Cluster ID']), axis=1)
 
-    # add footer to dataframe so that csv export will be imported by gsheet's tree map plotter correctly
-    for cluster_id in df['Cluster ID'].unique():
-        df = df.append({"Label": cluster_id, "Cluster ID": name_of_pdf_dir, "Silhouette Score": None},
-                       ignore_index=True)
-    else:
-        df = df.append({"Label": name_of_pdf_dir, "Cluster ID": None, "Silhouette Score": None}, ignore_index=True)
-
-    df.to_csv(args.output_filename, index=False)
+    keyword_strings = [kwd.strip() for kwd, score in text_keywords]
+    zk_output_files(args.output_dir, keyword_strings, df, all_text)
 
     return {
         "text_keywords": text_keywords
@@ -122,10 +128,13 @@ if __name__ == "__main__":
                             help="Please provide the directory which contains the PDFs"
                                  "which you'd like to build an information map of.",
                             type=str)
-    arg_parser.add_argument("--output_filename",
+    arg_parser.add_argument("output_dir",
                             default="out.csv")
+    arg_parser.add_argument("--delete_existing",
+                            help="Will delete pre-existing output directory",
+                            action="store_true")
     arg_parser.add_argument("--num_keywords",
-                            help="The number of keywords you'd like to be extracted",
+                            help="The upper limit on number of keywords you'd like to be extracted",
                             type=int,
                             default=500)
     arg_parser.add_argument("--lower_bound_chars",
