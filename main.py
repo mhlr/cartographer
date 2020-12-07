@@ -4,10 +4,8 @@
 import argparse
 from functools import partial
 
-import re
 import os
 from toolz.curried import curry, memoize
-from toolz import curried as tz
 
 import pandas as pd
 import numpy as np
@@ -18,6 +16,9 @@ from gensim.summarization import keywords, summarize
 import sklearn as sk
 from sklearn import neighbors, cluster
 import tensorflow_hub as hub
+import nltk
+from nltk.corpus import stopwords
+nltk.download("stopwords")
 
 from aux.text_extract import get_all_pdf_text_concatenated
 from aux.helpers import create_output_dir
@@ -65,6 +66,9 @@ def main(args):
 
     all_text = get_all_pdf_text_concatenated(args.directory_with_pdfs)
 
+    if not all_text:
+        raise RuntimeError("No text was extracted")
+
     pars = pd.Series(all_text.split('\n\n')).str.replace('\n', ' ')
 
     pars.str.len().apply(lambda x: np.log2(x + 1)).astype(int).value_counts()  # TODO, is this being stored anywhere?
@@ -89,13 +93,6 @@ def main(args):
 
     core = nx.k_core(nx.Graph(G))
 
-    # Capitalize all occurrences of keywords for easy display on the output
-    # TODO, make matching case insensitive
-    pattern = re.compile(f"\\b({tz.pipe(text_keywords, tz.pluck(0), '|'.join)})\\b")
-    nice_pars = nice_pars.apply(
-        lambda x: re.sub(pattern, lambda m: m.group().upper(), x))  # TODO add [[]] around our keywords for zettelkasten
-    # TODO use back reference (regex)
-
     core_nodes = core.nodes
     core_pars = np.array(nice_pars)[core_nodes]
     core_vecs = vecs[core_nodes]
@@ -105,7 +102,9 @@ def main(args):
     layers = nx.onion_layers(core)  # TODO, can I remove this?
 
     df = pd.DataFrame(
-        data=[{"Topic Paragraph": par, "Cluster ID": cid, "Silhouette Score": ss} for par, cid, ss in zip(core_pars, lab, sil)])
+        data=[{"Topic Paragraph": par, "Cluster ID": cid, "Silhouette Score": ss} for par, cid, ss in zip(core_pars,
+                                                                                                          lab,
+                                                                                                          sil)])
 
     # only keep the paragraphs which have a positive silhouette score
     # (this gives us the paragraphs which overwhelmingly consist of a single topic)
@@ -114,7 +113,7 @@ def main(args):
     # TODO, replace with Topic Labels
     df['Cluster ID'] = df.apply(lambda row: "T" + str(row['Cluster ID']), axis=1)
 
-    keyword_strings = [kwd.strip() for kwd, score in text_keywords]
+    keyword_strings = [kwd.strip() for kwd, score in text_keywords if kwd.lower() not in stopwords.words()]
     zk_output_files(args.output_dir, keyword_strings, df, all_text)
 
     return {
@@ -136,7 +135,7 @@ if __name__ == "__main__":
     arg_parser.add_argument("--num_keywords",
                             help="The upper limit on number of keywords you'd like to be extracted",
                             type=int,
-                            default=500)
+                            default=100)
     arg_parser.add_argument("--lower_bound_chars",
                             type=int,
                             default=256)
