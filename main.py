@@ -111,7 +111,7 @@ def main(args):
     df = df[df["Silhouette Score"] > 0]
 
     # TODO, replace with Topic Labels
-    df['Cluster ID'] = df.apply(lambda row: "T" + str(row['Cluster ID']), axis=1)
+    df['Cluster ID'] = df.apply(lambda row: "CID" + str(row['Cluster ID']), axis=1)
 
     keyword_strings = [kwd.strip() for kwd, score in text_keywords if kwd.lower() not in stopwords.words()]
     zk_output_files(args.output_dir, keyword_strings, df, all_text)
