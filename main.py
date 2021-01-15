@@ -5,7 +5,7 @@ import argparse
 from functools import partial
 
 import os
-from toolz.curried import curry, memoize
+from toolz.curried import curry, memoize, first, second
 
 import pandas as pd
 import numpy as np
@@ -52,7 +52,7 @@ def clust(g, v, n):
     model = cluster.AgglomerativeClustering(n, connectivity=g, linkage='ward', affinity='euclidean')
     labels = model.fit_predict(v)
     silh = sk.metrics.silhouette_samples(v, labels, metric='cosine')
-    return (silh.mean(), n, labels, silh, model)
+    return (silh.mean(), n, pd.Series(labels), silh, model)
 
 
 def main(args):
@@ -101,17 +101,60 @@ def main(args):
 
     layers = nx.onion_layers(core)  # TODO, can I remove this?
 
+    unique_labs = lab.unique()
+
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    words = list(map(first, keywords('\n'.join(core_pars), scores=True, lemmatize=False, words=int(2**10))))
+    word_vecs = emb(
+      tuple(words), "https://tfhub.dev/google/universal-sentence-encoder-large/5"
+    ).numpy()
+
+    par_word_sim = core_vecs @ word_vecs.T
+    
+    topics = pd.Series(
+        dict(
+            [
+                (
+                    i,
+                    max(
+                        [
+                            (
+                                words[w],
+                                min(
+                                    sk.metrics.roc_auc_score(lab[ix] == i, par_word_sim[ix, w])
+                                    for j in unique_labs
+                                    if i != j
+                                    for ix in [lab.isin([i, j])]
+                                ),
+                            )
+                            for w in range(len(words))
+                        ],
+                        key=second,
+                    )[0],
+                )
+                for i in unique_labs
+            ]
+        )
+    ).sort_index()
+
     df = pd.DataFrame(
-        data=[{"Topic Paragraph": par, "Cluster ID": cid, "Silhouette Score": ss} for par, cid, ss in zip(core_pars,
-                                                                                                          lab,
-                                                                                                          sil)])
+      data=[
+        {"Topic Paragraph": par, "Cluster ID": topics[cid], "Silhouette Score": ss, "Onion Layer": layer}
+        for par, cid, ss,  layer in zip(core_pars, lab, sil, pd.Series(layers))
+      ]
+    )
+ 
+    # df = pd.DataFrame(
+    #     data=[{"Topic Paragraph": par, "Cluster ID": cid, "Silhouette Score": ss} for par, cid, ss in zip(core_pars,
+    #                                                                                                       lab,
+    #                                                                                                       sil)])
 
     # only keep the paragraphs which have a positive silhouette score
     # (this gives us the paragraphs which overwhelmingly consist of a single topic)
     df = df[df["Silhouette Score"] > 0]
 
-    # TODO, replace with Topic Labels
-    df['Cluster ID'] = df.apply(lambda row: "CID" + str(row['Cluster ID']), axis=1)
+    # # TODO, replace with Topic Labels
+    # df['Cluster ID'] = df.apply(lambda row: "CID" + str(row['Cluster ID']), axis=1)
 
     keyword_strings = [kwd.strip() for kwd, score in text_keywords if kwd.lower() not in stopwords.words()]
     zk_output_files(args.output_dir, keyword_strings, df, all_text)
