@@ -76,9 +76,13 @@ def main(args):
     text_keywords = keywords(all_text, scores=True, lemmatize=True, words=args.num_keywords)
 
     auto_phrase_formatted_text = format_for_auto_phrase(all_text)
-    with open("/tmp/autophraseinput.txt", "w") as f:
+    with open("temp/autophrasein/autophraseinput.txt", "w") as f:
         f.write(auto_phrase_formatted_text)
-    
+    os.system("./run_autophrase.sh")
+    output_file_name = os.path.join("temp", "autophraseout", "MyModel", "AutoPhrase_multi-words.txt")
+
+
+
     lower_bound_chars, upper_bound_chars = args.lower_bound_chars, args.upper_bound_chars
     word_count = int((lower_bound_chars + upper_bound_chars) / (2 * (avg_word_len + 1)))
     lens = pars.str.len()  # paragraph lengths

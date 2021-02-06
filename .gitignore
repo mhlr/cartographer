@@ -132,4 +132,5 @@ dmypy.json
 .idea
 
 # project specific
-out.csv
+temp/autophrasein/*
+temp/autophraseout/*
