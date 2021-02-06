@@ -21,7 +21,7 @@ from nltk.corpus import stopwords
 nltk.download("stopwords")
 
 from aux.text_extract import get_all_pdf_text_concatenated
-from aux.helpers import create_output_dir
+from aux.helpers import create_output_dir, format_for_auto_phrase
 from aux.zettelkasten_output import zk_output_files
 
 
@@ -75,6 +75,10 @@ def main(args):
 
     text_keywords = keywords(all_text, scores=True, lemmatize=True, words=args.num_keywords)
 
+    auto_phrase_formatted_text = format_for_auto_phrase(all_text)
+    with open("/tmp/autophraseinput.txt", "w") as f:
+        f.write(auto_phrase_formatted_text)
+    
     lower_bound_chars, upper_bound_chars = args.lower_bound_chars, args.upper_bound_chars
     word_count = int((lower_bound_chars + upper_bound_chars) / (2 * (avg_word_len + 1)))
     lens = pars.str.len()  # paragraph lengths
