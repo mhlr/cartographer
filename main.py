@@ -79,9 +79,11 @@ def main(args):
     with open("temp/autophrasein/autophraseinput.txt", "w") as f:
         f.write(auto_phrase_formatted_text)
     os.system("./run_autophrase.sh")
-    output_file_name = os.path.join("temp", "autophraseout", "MyModel", "AutoPhrase_multi-words.txt")
+    auto_phrase_output_filename = os.path.join("temp", "autophraseout", "MyModel", "AutoPhrase_multi-words.txt")
 
-
+    df = pd.read_csv(auto_phrase_output_filename, sep='\t', header=0, names=['score', 'phrase'])
+    multi_phrase_kwds = df[df['score'] > 0.5]['phrase']
+    multi_phrase_kwds = list(multi_phrase_kwds.values)
 
     lower_bound_chars, upper_bound_chars = args.lower_bound_chars, args.upper_bound_chars
     word_count = int((lower_bound_chars + upper_bound_chars) / (2 * (avg_word_len + 1)))
@@ -118,7 +120,7 @@ def main(args):
     ).numpy()
 
     par_word_sim = core_vecs @ word_vecs.T
-    
+
     topics = pd.Series(
         dict(
             [
@@ -165,7 +167,8 @@ def main(args):
     # df['Cluster ID'] = df.apply(lambda row: "CID" + str(row['Cluster ID']), axis=1)
 
     keyword_strings = [kwd.strip() for kwd, score in text_keywords if kwd.lower() not in stopwords.words()]
-    zk_output_files(args.output_dir, keyword_strings, df, all_text)
+    all_kwds = keyword_strings + multi_phrase_kwds
+    zk_output_files(args.output_dir, all_kwds, df, all_text)
 
     return {
         "text_keywords": text_keywords
