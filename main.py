@@ -107,13 +107,21 @@ def main(args):
     core_pars = np.array(nice_pars)[core_nodes]
     core_vecs = vecs[core_nodes]
 
-    sil_u, n, lab, sil, p = clust(nx.adjacency_matrix(core), core_vecs, 8)
+    num_core_pars = len(core_pars)
+    bounds = np.round([np.log2(num_core_pars), np.sqrt(num_core_pars)], decimals=0).astype(int)
+
+    sil_u, n, lab, sil, p = None, None, None, None, None
+    for num_clusters in bounds:
+        temp_sil_u, temp_n, temp_lab, temp_sil, temp_p = \
+            clust(nx.adjacency_matrix(core), core_vecs, num_clusters)
+
+        if sil_u is None or temp_sil_u > sil_u:
+            sil_u, n, lab, sil, p = temp_sil_u, temp_n, temp_lab, temp_sil, temp_p
 
     layers = nx.onion_layers(core)  # TODO, can I remove this?
 
     unique_labs = lab.unique()
 
-    from sklearn.feature_extraction.text import TfidfVectorizer
     words = list(map(first, keywords('\n'.join(core_pars), scores=True, lemmatize=False, words=int(2**10))))
     word_vecs = emb(
       tuple(words), "https://tfhub.dev/google/universal-sentence-encoder-large/5"
