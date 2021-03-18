@@ -72,8 +72,6 @@ def main(args):
 
     pars = pd.Series(all_text.split('\n\n')).str.replace('\n', ' ')
 
-    pars.str.len().apply(lambda x: np.log2(x + 1)).astype(int).value_counts()  # TODO, is this being stored anywhere?
-
     text_keywords = keywords(all_text, scores=True, lemmatize=True, words=args.num_keywords)
 
     lower_bound_chars, upper_bound_chars = args.lower_bound_chars, args.upper_bound_chars
@@ -124,7 +122,7 @@ def main(args):
         if sil_u is None or temp_sil_u > sil_u:
             sil_u, n, lab, sil, p = temp_sil_u, temp_n, temp_lab, temp_sil, temp_p
 
-    layers = nx.onion_layers(core)  # TODO, can I remove this?
+    layers = nx.onion_layers(core)
 
     unique_labs = lab.unique()
 
@@ -168,21 +166,13 @@ def main(args):
         for par, cid, ss,  layer in zip(core_pars, lab, sil, pd.Series(layers))
       ]
     )
- 
-    # df = pd.DataFrame(
-    #     data=[{"Topic Paragraph": par, "Cluster ID": cid, "Silhouette Score": ss} for par, cid, ss in zip(core_pars,
-    #                                                                                                       lab,
-    #                                                                                                       sil)])
 
     # only keep the paragraphs which have a positive silhouette score
     # (this gives us the paragraphs which overwhelmingly consist of a single topic)
     df = df[df["Silhouette Score"] > 0]
 
-    # # TODO, replace with Topic Labels
-    # df['Cluster ID'] = df.apply(lambda row: "CID" + str(row['Cluster ID']), axis=1)
-
     keyword_strings = [kwd.strip() for kwd, score in text_keywords if kwd.lower() not in stopwords.words()]
-    all_kwds = keyword_strings + multi_phrase_kwds  # TODO do the consolidation of the two lists in one place and filter out duplicates
+    all_kwds = keyword_strings + multi_phrase_kwds
     zk_output_files(args.output_dir, all_kwds, df, all_text)
 
     return {
