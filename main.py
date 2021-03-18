@@ -13,6 +13,7 @@ import numpy as np
 import scipy
 import networkx as nx
 from gensim.summarization import keywords, summarize
+from gensim.summarization.textcleaner import clean_text_by_sentences
 import sklearn as sk
 from sklearn import neighbors, cluster
 import tensorflow_hub as hub
@@ -21,7 +22,7 @@ from nltk.corpus import stopwords
 nltk.download("stopwords")
 
 from aux.text_extract import get_all_pdf_text_concatenated
-from aux.helpers import create_output_dir, format_for_auto_phrase
+from aux.helpers import create_output_dir
 from aux.zettelkasten_output import zk_output_files
 
 
@@ -75,7 +76,22 @@ def main(args):
 
     text_keywords = keywords(all_text, scores=True, lemmatize=True, words=args.num_keywords)
 
-    auto_phrase_formatted_text = format_for_auto_phrase(all_text)
+    lower_bound_chars, upper_bound_chars = args.lower_bound_chars, args.upper_bound_chars
+    word_count = int((lower_bound_chars + upper_bound_chars) / (2 * (avg_word_len + 1)))
+    lens = pars.str.len()  # paragraph lengths
+    long_enough_pars = pars[(lens >= lower_bound_chars)]  # paragraphs we want to use
+
+    nice_pars = long_enough_pars.apply(
+        partial(text_reduce_return,
+                upper_bound_chars=upper_bound_chars, max_word_count=word_count)
+    )
+
+    all_sentences = [sentence.text
+                     for par in long_enough_pars
+                     for sentence in clean_text_by_sentences(par)]
+
+    auto_phrase_formatted_text = "\n.\n".join(all_sentences)
+
     with open("temp/autophrasein/autophraseinput.txt", "w") as f:
         f.write(auto_phrase_formatted_text)
     os.system("./run_autophrase.sh")
@@ -84,16 +100,6 @@ def main(args):
     df = pd.read_csv(auto_phrase_output_filename, sep='\t', header=0, names=['score', 'phrase'])
     multi_phrase_kwds = df[df['score'] > 0.5]['phrase']
     multi_phrase_kwds = list(multi_phrase_kwds.values)
-
-    lower_bound_chars, upper_bound_chars = args.lower_bound_chars, args.upper_bound_chars
-    word_count = int((lower_bound_chars + upper_bound_chars) / (2 * (avg_word_len + 1)))
-    lens = pars.str.len()  # paragraph lengths
-    nice_pars = pars[(lens >= lower_bound_chars)]  # paragraphs we want to use
-
-    nice_pars = nice_pars.apply(
-        partial(text_reduce_return,
-                upper_bound_chars=upper_bound_chars, max_word_count=word_count)
-    )
 
     vecs = emb(tuple(nice_pars), args.tfhub_sentence_encoder_url).numpy()
 
@@ -123,6 +129,7 @@ def main(args):
     unique_labs = lab.unique()
 
     words = list(map(first, keywords('\n'.join(core_pars), scores=True, lemmatize=False, words=int(2**10))))
+    words += multi_phrase_kwds  # add in the multi word
     word_vecs = emb(
       tuple(words), "https://tfhub.dev/google/universal-sentence-encoder-large/5"
     ).numpy()
@@ -175,7 +182,7 @@ def main(args):
     # df['Cluster ID'] = df.apply(lambda row: "CID" + str(row['Cluster ID']), axis=1)
 
     keyword_strings = [kwd.strip() for kwd, score in text_keywords if kwd.lower() not in stopwords.words()]
-    all_kwds = keyword_strings + multi_phrase_kwds
+    all_kwds = keyword_strings + multi_phrase_kwds  # TODO do the consolidation of the two lists in one place and filter out duplicates
     zk_output_files(args.output_dir, all_kwds, df, all_text)
 
     return {
