@@ -2,6 +2,7 @@
 
 
 import argparse
+import re
 from functools import partial
 
 import os
@@ -70,6 +71,7 @@ def main(args):
     if not all_text:
         raise RuntimeError("No text was extracted")
 
+    all_text = re.sub("-\s+", "", all_text) # replace trailing hyphens with no space to prevent word splitting
     pars = pd.Series(all_text.split('\n\n')).str.replace('\n', ' ')
 
     text_keywords = keywords(all_text, scores=True, lemmatize=True, words=args.num_keywords)

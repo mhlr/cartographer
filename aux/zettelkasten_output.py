@@ -12,6 +12,7 @@ def term_zettelkasten_link_formatter(match: re.Match):
 def term_zettelkasten_tag_formatter(match: re.Match):
     term = match.group()  # get the actual word (string)
     term = term.replace(" ", "-")  # deal with bi-gram tags
+
     return f"#{term.lower()}"  # modification to allow for tagging by Zettelkasten software (e.g, Obsidian)
 
 def zk_output_files(output_dir: str, key_terms: List[str], df: pd.DataFrame, raw_text: str) -> None:
