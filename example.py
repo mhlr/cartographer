@@ -65,12 +65,11 @@ nice_pars = pars[(lens >= lower_bound_chars)]  # paragraphs we want to use
 def text_reduce_return(paragraph):
     if len(paragraph) < upper_bound_chars:
         return paragraph
-    else:
-        try:
-            return summarize(paragraph, word_count=word_count).replace("\n", " ") or \
-                   paragraph[:upper_bound_chars]
-        except ValueError:  # usually happens if there aren't multiple sentences in paragraph
-            return paragraph[:upper_bound_chars]
+    try:
+        return summarize(paragraph, word_count=word_count).replace("\n", " ") or \
+               paragraph[:upper_bound_chars]
+    except ValueError:  # usually happens if there aren't multiple sentences in paragraph
+        return paragraph[:upper_bound_chars]
 
 nice_pars = nice_pars.apply(text_reduce_return)
 

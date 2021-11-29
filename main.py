@@ -35,14 +35,13 @@ def emb(texts, model_url):
   return tfload(model_url)(texts)
 
 def text_reduce_return(paragraph, upper_bound_chars, max_word_count):
-    if len(paragraph) < upper_bound_chars:
-        return paragraph
-    else:
-        try:
-            return summarize(paragraph, word_count=max_word_count).replace("\n", " ") or \
-                   paragraph[:upper_bound_chars]
-        except ValueError:  # usually happens if there aren't multiple sentences in the paragraph
-            return paragraph[:upper_bound_chars]
+  if len(paragraph) < upper_bound_chars:
+    return paragraph
+  try:
+      return summarize(paragraph, word_count=max_word_count).replace("\n", " ") or \
+             paragraph[:upper_bound_chars]
+  except ValueError:  # usually happens if there aren't multiple sentences in the paragraph
+      return paragraph[:upper_bound_chars]
 
 @curry
 def clust(g, v, n):
